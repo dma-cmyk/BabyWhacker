@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>赤ちゃんモグラたたきゲーム</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Mochiy+Pop+One', sans-serif;
+            touch-action: manipulation;
+            overflow: hidden;
+        }
+        .hole {
+            background-color: #689f38;
+            border-radius: 50%;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            box-shadow: inset 0 6px 10px rgba(0,0,0,0.3);
+        }
+        .character {
+            font-size: 4vw;
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translate(-50%, 100%);
+            transition: transform 0.2s ease-out;
+            pointer-events: none;
+        }
+        .hole.up .character {
+            transform: translate(-50%, 10%);
+        }
+        .whacked {
+            animation: whacked 0.3s ease-in-out;
+        }
+        @keyframes whacked {
+            0% { transform: translate(-50%, 10%) scale(1); }
+            50% { transform: translate(-50%, 10%) scale(1.2) rotate(-15deg); }
+            100% { transform: translate(-50%, 100%) scale(1); }
+        }
+        #speech-bubble {
+            position: absolute;
+            background-color: white;
+            color: #333;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 1rem;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transform: translate(-50%, -120%);
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 10;
+        }
+        #speech-bubble.show {
+            opacity: 1;
+            transform: translate(-50%, -140%);
+        }
+        #speech-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 8px 8px 0;
+            border-style: solid;
+            border-color: white transparent transparent transparent;
+        }
+    </style>
+</head>
+<body class="bg-green-100 text-green-800 flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div id="start-screen" class="text-center p-8 bg-white/80 rounded-2xl shadow-lg">
+        <h1 class="text-4xl md:text-5xl font-bold mb-4 text-green-600">赤ちゃんモグラたたき</h1>
+        <p class="text-lg mb-8">赤ちゃん(👶)を叩いてスコアUP！<br>ツイフェミ(👩‍🏫)を叩くと減点だよ！</p>
+        <button id="start-button" class="bg-yellow-400 hover:bg-yellow-500 text-white font-bold py-4 px-8 rounded-full text-2xl shadow-md transform hover:scale-105 transition-transform duration-300">
+            ゲーム開始！
+        </button>
+    </div>
+
+    <div id="game-screen" class="hidden w-full max-w-4xl mx-auto text-center">
+        <div class="bg-white/80 p-4 rounded-2xl shadow-lg mb-4 flex justify-around items-center flex-wrap gap-4">
+            <div>
+                <span class="text-lg">スコア</span>
+                <span id="score" class="text-3xl font-bold">0</span>
+            </div>
+            <div>
+                <span class="text-lg">のこり時間</span>
+                <span id="timer" class="text-3xl font-bold">30</span>
+            </div>
+            <button id="mute-button" class="bg-pink-400 hover:bg-pink-500 text-white font-bold py-2 px-4 rounded-full text-lg shadow-md transform hover:scale-105 transition-transform duration-300">SOUND🔊</button>
+        </div>
+
+        <div id="game-board" class="grid grid-cols-3 sm:grid-cols-4 gap-4 select-none relative">
+            <div id="speech-bubble"></div>
+        </div>
+    </div>
+
+    <div id="modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl text-center max-w-sm mx-4">
+            <p id="modal-message" class="text-3xl font-bold mb-6"></p>
+            <button id="modal-button" class="bg-yellow-400 hover:bg-yellow-500 text-white font-bold py-3 px-8 rounded-full text-xl shadow-md transform hover:scale-105 transition-transform duration-300">
+                OK
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM要素の取得 ---
+        const startScreen = document.getElementById('start-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const startButton = document.getElementById('start-button');
+        const gameBoard = document.getElementById('game-board');
+        const scoreDisplay = document.getElementById('score');
+        const timerDisplay = document.getElementById('timer');
+        const modal = document.getElementById('modal');
+        const modalMessage = document.getElementById('modal-message');
+        const modalButton = document.getElementById('modal-button');
+        const muteButton = document.getElementById('mute-button');
+        const speechBubble = document.getElementById('speech-bubble');
+
+        // --- ゲームの状態管理 ---
+        let score = 0;
+        let timer = 30;
+        let timerInterval;
+        let isGameActive = false;
+        let isMuted = false;
+        const holes = [];
+
+        // --- セリフリスト ---
+        const babyQuotes = [
+            "ンゴンゴwww", "ファッ！？", "イッチ、見つかったンゴ", "ワイ、有能", "これは名采配",
+            "サンイチ", "ちなDe", "草生える", "もう終わりだよこの畑", "すまんな", "ええんか？",
+            "なんでや！", "やったぜ。", "大正義キャベツ軍", "はい、論破", "マ？", "涙がで、出ますよ…",
+            "これもうわかんねぇな", "うーん、この", "お、そうだな", "はえ〜すっごい", "ガッツリで草",
+            "当然の結果ですわ", "ミルクの時間だあああ", "ポジハメくん、見てる〜？", "絶許",
+            "ほならね理論", "ぐうの音も出ない", "異論は認める", "なお、明日は", "猛虎魂を感じる",
+            "知らんけど", "アカン", "草不可避", "せやな", "ちな鷹", "ちな巨", "ちな虎"
+        ];
+        const feministQuotes = [
+            "それ、女の私への抑圧ですよね？", "男さん…w", "はい、#metoo", "その発言、ミソジニーですよ",
+            "わかる～", "オタクくんさぁ…", "そういうとこやぞ", "はい、通報", "女性差別",
+            "#stopAsianHate", "多様性の時代なんで", "それってあなたの感想ですよね？", "はいブロック",
+            "クソリプ乙", "マンスプレイニングやめて", "ルッキズムでは？", "男は単純でいいよね",
+            "ソースは？", "勉強不足ですね", "それな", "ありえない", "は？", "無理", "キモ"
+        ];
+
+        // --- サウンド関連の初期設定 ---
+        const synth = new Tone.Synth().toDestination();
+        const musicLoop = new Tone.Sequence((time, note) => {
+            synth.triggerAttackRelease(note, "8n", time);
+        }, ["C4", "E4", "G4", "E4"], "4n");
+        Tone.Transport.bpm.value = 140;
+
+        // --- イベントリスナー ---
+        startButton.addEventListener('click', async () => {
+            await Tone.start();
+            startGame();
+        });
+        modalButton.addEventListener('click', handleModalClick);
+        muteButton.addEventListener('click', toggleMute);
+
+        function startGame() {
+            startScreen.classList.add('hidden');
+            gameScreen.classList.remove('hidden');
+            isGameActive = true;
+            score = 0;
+            timer = 30;
+            scoreDisplay.textContent = score;
+            timerDisplay.textContent = timer;
+            
+            createBoard(12);
+            startTimer();
+            
+            if (Tone.Transport.state !== 'started') Tone.Transport.start();
+            musicLoop.start();
+            
+            // ★変更: ゲームループを開始
+            gameLoop();
+        }
+
+        // ★追加: スコアに応じて難易度が変わるゲームループ
+        function gameLoop() {
+            if (!isGameActive) return; // ゲームが終了していたらループを止める
+
+            popRandomCharacter();
+
+            // スコアに応じて次のキャラクターが出現するまでの時間を計算
+            // スコアが上がるほど、間隔が短くなる（速くなる）
+            const interval = Math.max(250, 900 - score * 10); // 最低速度250ms
+
+            setTimeout(gameLoop, interval);
+        }
+
+        function createBoard(numHoles) {
+            gameBoard.innerHTML = '';
+            gameBoard.appendChild(speechBubble);
+            holes.length = 0;
+
+            for (let i = 0; i < numHoles; i++) {
+                const hole = document.createElement('div');
+                hole.classList.add('hole');
+                hole.style.aspectRatio = '1 / 1';
+                hole.dataset.active = 'false';
+
+                const character = document.createElement('div');
+                character.classList.add('character');
+                
+                hole.appendChild(character);
+                hole.addEventListener('click', handleWhack);
+                gameBoard.appendChild(hole);
+                holes.push(hole);
+            }
+        }
+
+        function popRandomCharacter() {
+            if (!isGameActive) return;
+            
+            const availableHoles = holes.filter(h => h.dataset.active === 'false');
+            if (availableHoles.length === 0) return;
+
+            const hole = availableHoles[Math.floor(Math.random() * availableHoles.length)];
+            const characterEl = hole.querySelector('.character');
+
+            const characterType = Math.random() < 0.75 ? 'baby' : 'feminist';
+            hole.dataset.characterType = characterType;
+            characterEl.textContent = characterType === 'baby' ? '👶' : '👩‍🏫';
+
+            hole.dataset.active = 'true';
+            hole.classList.add('up');
+            
+            // ★変更: スコアが上がるほど表示時間が短くなる
+            const popDuration = Math.max(400, 1200 - score * 8);
+            setTimeout(() => {
+                if (hole.dataset.active === 'true') {
+                    hole.classList.remove('up');
+                    hole.dataset.active = 'false';
+                }
+            }, popDuration);
+        }
+
+        function handleWhack(event) {
+            if (!isGameActive) return;
+            const hole = event.currentTarget;
+
+            if (hole.dataset.active === 'true') {
+                const characterType = hole.dataset.characterType;
+                
+                if (characterType === 'baby') {
+                    score++;
+                    synth.triggerAttackRelease("G4", "16n");
+                } else {
+                    score = Math.max(0, score - 2);
+                    synth.triggerAttackRelease("C3", "16n");
+                }
+                
+                scoreDisplay.textContent = score;
+                hole.dataset.active = 'false';
+                hole.classList.remove('up');
+                hole.querySelector('.character').classList.add('whacked');
+                
+                showCharacterQuote(hole, characterType);
+
+                setTimeout(() => {
+                    hole.querySelector('.character').classList.remove('whacked');
+                }, 300);
+            }
+        }
+        
+        function startTimer() {
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timer--;
+                timerDisplay.textContent = timer;
+                if (timer <= 0) gameOver();
+            }, 1000);
+        }
+        
+        function speak(text, characterType) {
+            if (isMuted) return;
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'ja-JP';
+            if (characterType === 'baby') {
+                utterance.rate = 1.2;
+                utterance.pitch = 1.5;
+            } else {
+                utterance.rate = 1.0;
+                utterance.pitch = 0.8;
+            }
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function showCharacterQuote(hole, characterType) {
+            const quotes = characterType === 'baby' ? babyQuotes : feministQuotes;
+            const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+            
+            speechBubble.textContent = randomQuote;
+            speak(randomQuote, characterType);
+            
+            speechBubble.style.left = `${hole.offsetLeft + hole.offsetWidth / 2}px`;
+            speechBubble.style.top = `${hole.offsetTop}px`;
+            speechBubble.classList.add('show');
+            setTimeout(() => speechBubble.classList.remove('show'), 1200);
+        }
+
+        function toggleMute() {
+            isMuted = !isMuted;
+            Tone.Destination.mute = isMuted;
+            if (isMuted) window.speechSynthesis.cancel();
+            muteButton.textContent = isMuted ? 'SOUND🔇' : 'SOUND🔊';
+            muteButton.classList.toggle('bg-pink-400', !isMuted);
+            muteButton.classList.toggle('hover:bg-pink-500', !isMuted);
+            muteButton.classList.toggle('bg-gray-400', isMuted);
+            muteButton.classList.toggle('hover:bg-gray-500', isMuted);
+        }
+
+        function gameOver() {
+            isGameActive = false;
+            // ★変更: clearIntervalは不要に
+            clearInterval(timerInterval);
+            musicLoop.stop();
+            synth.triggerAttackRelease("G2", "4n");
+            showMessage(`終了！<br>スコア: ${score}`, 'もう一度挑戦');
+        }
+
+        function showMessage(message, buttonText) {
+            modalMessage.innerHTML = message;
+            modalButton.textContent = buttonText;
+            modal.classList.remove('hidden');
+        }
+
+        function handleModalClick() {
+            modal.classList.add('hidden');
+            if (modalButton.textContent === 'もう一度挑戦') {
+                startGame();
+            } else {
+                gameScreen.classList.add('hidden');
+                startScreen.classList.remove('hidden');
+            }
+        }
+    </script>
+
+</body>
+</html>
+
