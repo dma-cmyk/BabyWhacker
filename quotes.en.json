@@ -1,0 +1,34 @@
+{
+  "baby": [
+    "LOL", "Wha!?", "Found me!", "I'm awesome!", "Great call!",
+    "For real?", "Go team!", "LMAO", "It's over...", "My bad", "U sure?",
+    "Why!", "Yeah!", "We rule!", "Owned!", "Seriously?", "I'm gonna cry...",
+    "I dunno anymore", "Hmm...", "Oh, right", "Wow, amazing!", "Totally lol",
+    "As expected", "Milk time!", "You seein' this?", "Unforgivable!",
+    "If that's the case...", "Can't argue that", "I'll allow it", "Well, tomorrow...", "Feel the spirit!",
+    "Just sayin'", "Oh no", "Can't stop laughing", "Yup", "Go Hawks", "Go Giants", "Go Tigers",
+    "KEKW", "Based", "Poggers", "Cope", "Seethe", "Mald", "Get rekt, normie",
+    "It's just a prank, bro", "FeelsBadMan", "We coo'?"
+  ],
+  "feminist": [
+    "Isn't that oppressive towards me as a woman?", "Oh, men... lol", "Yes, #metoo", "That's misogyny",
+    "I get it~", "Hey, nerd...", "That's the problem", "Reported", "Sexist",
+    "#stopAsianHate", "It's an age of diversity", "Is that just your opinion?", "Blocked",
+    "Nice reply, idiot", "Stop mansplaining", "Isn't that lookism?", "Men are so simple",
+    "Source?", "You should study more", "Totally", "Unbelievable", "What?", "No way", "Gross",
+    "Check your privilege.", "That's problematic.", "Yikes.", "This ain't it, chief.",
+    "I'm literally shaking.", "Silence is violence.", "Read the room.", "Do better.",
+    "It's the internalized misogyny for me.", "Sorry, not sorry."
+  ],
+  "ui": {
+    "title": "Baby Whacker",
+    "description": "Whack the baby (👶) to score points!<br>Hitting the feminist (👩‍🏫) will deduct points!",
+    "startButton": "Start Game!",
+    "score": "Score",
+    "timer": "Time Left",
+    "soundOn": "SOUND🔊",
+    "soundOff": "SOUND🔇",
+    "endMessage": "Game Over!<br>Score: {score}",
+    "retryButton": "Try Again"
+  }
+}
