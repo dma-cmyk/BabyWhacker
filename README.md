@@ -27,3 +27,7 @@
 ---
 
 このゲームで、君の反射神経と動体視力の限界に挑戦してみてね！うみみゃぁ！
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
